@@ -9,21 +9,31 @@
 <body>
 <div class="layout">
     <aside class="sidebar" id="sidebar"></aside>
+
     <div class="main">
         <header class="topbar">
             <span class="topbar-title">Gestión de Productos</span>
             <div class="topbar-actions">
-                <button class="btn btn-primary btn-sm" onclick="openModal('modal-product')">+ Nuevo producto</button>
+                <button class="btn btn-primary btn-sm" onclick="openNewProduct()">
+                    + Nuevo producto
+                </button>
             </div>
         </header>
+
         <div class="content">
             <div id="alert-container"></div>
+
             <div class="card">
                 <div class="card-header">
                     <h2>Inventario</h2>
+
                     <div class="search-bar" style="margin:0;">
-                        <input type="text" id="search-input" class="form-control" placeholder="Buscar por nombre, SKU o descripción..." style="width:280px;" oninput="debouncedSearch()">
-                        <select id="cat-filter" class="form-control" style="width:160px;" onchange="loadProducts()">
+                        <input type="text" id="search-input" class="form-control"
+                            placeholder="Buscar..." style="width:280px;"
+                            oninput="debouncedSearch()">
+
+                        <select id="cat-filter" class="form-control"
+                            style="width:160px;" onchange="loadProducts()">
                             <option value="">Todas las categorías</option>
                             <option value="portatiles">Portátiles</option>
                             <option value="componentes">Componentes</option>
@@ -34,19 +44,21 @@
                         </select>
                     </div>
                 </div>
+
                 <div class="table-wrap">
                     <table>
                         <thead>
-                            <tr>
-                                <th>SKU</th>
-                                <th>Nombre</th>
-                                <th>Categoría</th>
-                                <th>Precio</th>
-                                <th>Stock</th>
-                                <th>Actualizado</th>
-                                <th>Acciones</th>
-                            </tr>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Nombre</th>
+                            <th>Categoría</th>
+                            <th>Precio</th>
+                            <th>Stock</th>
+                            <th>Actualizado</th>
+                            <th>Acciones</th>
+                        </tr>
                         </thead>
+
                         <tbody id="products-table"></tbody>
                     </table>
                 </div>
@@ -55,219 +67,212 @@
     </div>
 </div>
 
-<!-- Modal Producto -->
-<div class="modal-overlay" id="modal-product">
-    <div class="modal">
-        <div class="modal-header">
-            <h3 id="modal-title">Nuevo producto</h3>
-            <button class="modal-close" onclick="closeModal('modal-product')">✕</button>
-        </div>
-        <div class="modal-body">
-            <input type="hidden" id="prod-id">
-            <div class="form-grid-2">
-                <div class="form-group">
-                    <label class="form-label">SKU *</label>
-                    <input type="text" id="prod-sku" class="form-control" placeholder="WH-001">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Categoría</label>
-                    <select id="prod-category" class="form-control">
-                        <option value="">— Sin categoría —</option>
-                        <option value="portatiles">Portátiles</option>
-                        <option value="componentes">Componentes</option>
-                        <option value="monitores">Monitores</option>
-                        <option value="perifericos">Periféricos</option>
-                        <option value="almacenamiento">Almacenamiento</option>
-                        <option value="redes">Redes</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Nombre *</label>
-                <input type="text" id="prod-name" class="form-control" placeholder="Nombre del producto">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Descripción</label>
-                <textarea id="prod-description" class="form-control" placeholder="Descripción del producto"></textarea>
-            </div>
-            <div class="form-grid-2">
-                <div class="form-group">
-                    <label class="form-label">Precio (€)</label>
-                    <input type="number" id="prod-price" class="form-control" step="0.01" min="0" placeholder="0.00">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Stock inicial</label>
-                    <input type="number" id="prod-stock" class="form-control" min="0" placeholder="0">
-                </div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeModal('modal-product')">Cancelar</button>
-            <button class="btn btn-primary" onclick="saveProduct()">Guardar</button>
-        </div>
-    </div>
-</div>
+    <script src="/js/app.js"></script>
 
-<!-- Modal Stock -->
-<div class="modal-overlay" id="modal-stock">
-    <div class="modal">
-        <div class="modal-header">
-            <h3>Ajuste de stock</h3>
-            <button class="modal-close" onclick="closeModal('modal-stock')">✕</button>
-        </div>
-        <div class="modal-body">
-            <p id="stock-product-name" class="fw-bold mb-4"></p>
-            <input type="hidden" id="stock-product-id">
-            <div class="form-group">
-                <label class="form-label">Cantidad (positivo = entrada, negativo = salida)</label>
-                <input type="number" id="stock-qty" class="form-control" placeholder="ej: 10 o -5">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Motivo</label>
-                <input type="text" id="stock-reason" class="form-control" placeholder="ej: Recepción de pedido proveedor">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeModal('modal-stock')">Cancelar</button>
-            <button class="btn btn-primary" onclick="saveStock()">Aplicar</button>
-        </div>
-    </div>
-</div>
+    <script>
+        if (!requireAuth()) throw new Error();
+        document.getElementById('sidebar').innerHTML = renderSidebar('products');
 
-<script src="/js/app.js"></script>
-<script>
-    if (!requireAuth()) throw new Error();
-    document.getElementById('sidebar').innerHTML = renderSidebar('products');
+        let searchTimeout;
 
-    let searchTimeout;
-    function debouncedSearch() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(loadProducts, 350);
-    }
+        /* =========================
+        SECURITY HELPERS
+        ========================= */
 
-    async function loadProducts() {
-        const search   = document.getElementById('search-input').value.trim();
-        const category = document.getElementById('cat-filter').value;
-
-        let qs = '';
-        if (search)   qs += `?search=${encodeURIComponent(search)}`;
-        if (category) qs += (qs ? '&' : '?') + `category=${category}`;
-
-        const r = await apiFetch('/products' + qs);
-        const tbody = document.getElementById('products-table');
-
-        if (!r.ok) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-danger" style="padding:20px;text-align:center;">${r.data.error}</td></tr>`;
-            return;
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return '';
+            return str
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
         }
 
-        const products = r.data;
-        if (products.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-muted" style="padding:24px;text-align:center;">No se encontraron productos.</td></tr>';
-            return;
+        function sanitizeText(str) {
+            return (str || '').toString().trim().replace(/[<>]/g, '');
         }
 
-        tbody.innerHTML = products.map(p => `
-            <tr>
-                <td><code>${p.sku}</code></td>
-                <td class="fw-bold">${p.name}</td>
-                <td><span class="badge badge-blue">${p.category || '—'}</span></td>
-                <td>${formatPrice(p.price)}</td>
-                <td class="${p.stock < 5 ? 'stock-low' : 'stock-ok'}">${p.stock}</td>
-                <td class="text-muted">${formatDate(p.updated_at)}</td>
-                <td>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-ghost btn-sm" onclick="editProduct(${p.id})">Editar</button>
-                        <button class="btn btn-ghost btn-sm" onclick="openStockModal(${p.id},'${p.name.replace(/'/g,"\\'")}')">Stock</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id})">Eliminar</button>
-                    </div>
-                </td>
-            </tr>`).join('');
-    }
+        /* =========================
+        SEARCH DEBOUNCE
+        ========================= */
 
-    function openNewProduct() {
-        document.getElementById('modal-title').textContent = 'Nuevo producto';
-        document.getElementById('prod-id').value = '';
-        ['prod-sku','prod-name','prod-description','prod-price','prod-stock'].forEach(id => document.getElementById(id).value = '');
-        document.getElementById('prod-category').value = '';
-        openModal('modal-product');
-    }
+        function debouncedSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(loadProducts, 350);
+        }
 
-    document.querySelector('[onclick="openModal(\'modal-product\')"]').onclick = openNewProduct;
+        /* =========================
+        LOAD PRODUCTS
+        ========================= */
 
-    async function editProduct(id) {
-        const r = await apiFetch('/products/' + id);
-        if (!r.ok) return;
-        const p = r.data;
-        document.getElementById('modal-title').textContent = 'Editar producto';
-        document.getElementById('prod-id').value = p.id;
-        document.getElementById('prod-sku').value = p.sku;
-        document.getElementById('prod-name').value = p.name;
-        document.getElementById('prod-description').value = p.description || '';
-        document.getElementById('prod-price').value = p.price;
-        document.getElementById('prod-stock').value = p.stock;
-        document.getElementById('prod-category').value = p.category || '';
-        openModal('modal-product');
-    }
+        async function loadProducts() {
+            const search = sanitizeText(document.getElementById('search-input').value);
+            const category = document.getElementById('cat-filter').value;
 
-    async function saveProduct() {
-        const id = document.getElementById('prod-id').value;
-        const body = {
-            sku:         document.getElementById('prod-sku').value.trim(),
-            name:        document.getElementById('prod-name').value.trim(),
-            description: document.getElementById('prod-description').value.trim(),
-            price:       parseFloat(document.getElementById('prod-price').value) || 0,
-            stock:       parseInt(document.getElementById('prod-stock').value) || 0,
-            category:    document.getElementById('prod-category').value,
-        };
+            let qs = '';
+            if (search) qs += `?search=${encodeURIComponent(search)}`;
+            if (category) qs += (qs ? '&' : '?') + `category=${encodeURIComponent(category)}`;
 
-        if (!body.sku || !body.name) return showAlert('alert-container', 'SKU y nombre son obligatorios.');
+            const r = await apiFetch('/products' + qs);
+            const tbody = document.getElementById('products-table');
 
-        const r = id
-            ? await apiFetch('/products/' + id, { method: 'PUT', body: JSON.stringify(body) })
-            : await apiFetch('/products', { method: 'POST', body: JSON.stringify(body) });
+            if (!r.ok) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:red;">Error cargando datos</td></tr>`;
+                return;
+            }
 
-        if (!r.ok) return showAlert('alert-container', r.data.error || 'Error al guardar.');
-        closeModal('modal-product');
-        showAlert('alert-container', 'Producto guardado correctamente.', 'success');
+            const products = r.data;
+
+            if (!products.length) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Sin productos</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+
+            for (const p of products) {
+                const tr = document.createElement('tr');
+
+                tr.innerHTML = `
+                    <td><code>${escapeHtml(p.sku)}</code></td>
+                    <td class="fw-bold">${escapeHtml(p.name)}</td>
+                    <td><span class="badge">${escapeHtml(p.category || '—')}</span></td>
+                    <td>${formatPrice(p.price)}</td>
+                    <td>${p.stock}</td>
+                    <td>${formatDate(p.updated_at)}</td>
+                    <td></td>
+                `;
+
+                const actions = document.createElement('div');
+                actions.className = 'd-flex gap-2';
+
+                const btnEdit = document.createElement('button');
+                btnEdit.className = 'btn btn-ghost btn-sm';
+                btnEdit.textContent = 'Editar';
+                btnEdit.onclick = () => editProduct(p.id);
+
+                const btnStock = document.createElement('button');
+                btnStock.className = 'btn btn-ghost btn-sm';
+                btnStock.textContent = 'Stock';
+                btnStock.onclick = () => openStockModal(p.id, p.name);
+
+                const btnDelete = document.createElement('button');
+                btnDelete.className = 'btn btn-danger btn-sm';
+                btnDelete.textContent = 'Eliminar';
+                btnDelete.onclick = () => deleteProduct(p.id);
+
+                actions.appendChild(btnEdit);
+                actions.appendChild(btnStock);
+                actions.appendChild(btnDelete);
+
+                tr.children[6].appendChild(actions);
+                tbody.appendChild(tr);
+            }
+        }
+
+        /* =========================
+        CREATE / EDIT PRODUCT
+        ========================= */
+
+        function openNewProduct() {
+            document.getElementById('prod-id').value = '';
+            document.getElementById('prod-sku').value = '';
+            document.getElementById('prod-name').value = '';
+            document.getElementById('prod-description').value = '';
+            document.getElementById('prod-price').value = '';
+            document.getElementById('prod-stock').value = '';
+            document.getElementById('prod-category').value = '';
+
+            openModal('modal-product');
+        }
+
+        async function saveProduct() {
+            const id = document.getElementById('prod-id').value;
+
+            const body = {
+                sku: sanitizeText(document.getElementById('prod-sku').value),
+                name: sanitizeText(document.getElementById('prod-name').value),
+                description: sanitizeText(document.getElementById('prod-description').value),
+                price: Math.max(0, parseFloat(document.getElementById('prod-price').value) || 0),
+                stock: Math.max(0, parseInt(document.getElementById('prod-stock').value) || 0),
+                category: sanitizeText(document.getElementById('prod-category').value),
+            };
+
+            if (!body.sku || !body.name) {
+                return showAlert('alert-container', 'SKU y nombre son obligatorios.');
+            }
+
+            const r = id
+                ? await apiFetch('/products/' + id, { method: 'PUT', body: JSON.stringify(body) })
+                : await apiFetch('/products', { method: 'POST', body: JSON.stringify(body) });
+
+            if (!r.ok) {
+                return showAlert('alert-container', 'Error al guardar producto.');
+            }
+
+            closeModal('modal-product');
+            showAlert('alert-container', 'Producto guardado.', 'success');
+            loadProducts();
+        }
+
+        /* =========================
+        DELETE PRODUCT (SAFE)
+        ========================= */
+
+        async function deleteProduct(id) {
+            const first = confirm('¿Eliminar producto?');
+            if (!first) return;
+
+            const second = confirm('Esta acción no se puede deshacer.');
+            if (!second) return;
+
+            const r = await apiFetch('/products/' + id, { method: 'DELETE' });
+
+            if (!r.ok) {
+                return showAlert('alert-container', 'Error al eliminar.');
+            }
+
+            showAlert('alert-container', 'Producto eliminado.', 'success');
+            loadProducts();
+        }
+
+        /* =========================
+        STOCK
+        ========================= */
+
+        function openStockModal(id, name) {
+            document.getElementById('stock-product-id').value = id;
+            document.getElementById('stock-product-name').textContent = sanitizeText(name);
+            document.getElementById('stock-qty').value = '';
+            document.getElementById('stock-reason').value = '';
+            openModal('modal-stock');
+        }
+
+        async function saveStock() {
+            const id = document.getElementById('stock-product-id').value;
+            const qty = parseInt(document.getElementById('stock-qty').value);
+            const reason = sanitizeText(document.getElementById('stock-reason').value);
+
+            if (isNaN(qty)) {
+                return showAlert('alert-container', 'Cantidad inválida.');
+            }
+
+            const r = await apiFetch(`/products/${id}/stock`, {
+                method: 'PATCH',
+                body: JSON.stringify({ quantity: qty, reason })
+            });
+
+            if (!r.ok) {
+                return showAlert('alert-container', 'Error al actualizar stock.');
+            }
+
+            closeModal('modal-stock');
+            showAlert('alert-container', 'Stock actualizado.', 'success');
+            loadProducts();
+        }
+
         loadProducts();
-    }
-
-    function openStockModal(id, name) {
-        document.getElementById('stock-product-id').value = id;
-        document.getElementById('stock-product-name').textContent = name;
-        document.getElementById('stock-qty').value = '';
-        document.getElementById('stock-reason').value = '';
-        openModal('modal-stock');
-    }
-
-    async function saveStock() {
-        const id  = document.getElementById('stock-product-id').value;
-        const qty = parseInt(document.getElementById('stock-qty').value);
-        const reason = document.getElementById('stock-reason').value.trim();
-
-        if (isNaN(qty)) return showAlert('alert-container', 'Introduce una cantidad válida.');
-
-        const r = await apiFetch(`/products/${id}/stock`, {
-            method: 'PATCH',
-            body: JSON.stringify({ quantity: qty, reason })
-        });
-
-        if (!r.ok) return showAlert('alert-container', r.data.error || 'Error.');
-        closeModal('modal-stock');
-        showAlert('alert-container', `Stock actualizado. Nuevo total: ${r.data.stock}`, 'success');
-        loadProducts();
-    }
-
-    async function deleteProduct(id) {
-        if (!confirm('¿Eliminar este producto? Esta acción no se puede deshacer.')) return;
-        const r = await apiFetch('/products/' + id, { method: 'DELETE' });
-        if (!r.ok) return showAlert('alert-container', r.data.error || 'Error al eliminar.');
-        showAlert('alert-container', 'Producto eliminado.', 'success');
-        loadProducts();
-    }
-
-    loadProducts();
-</script>
-</body>
+        </script>
+    </body>
 </html>

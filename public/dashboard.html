@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -111,4 +111,238 @@
     loadDashboard();
 </script>
 </body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — TecnoStore Almacén</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <div class="main">
+        <header class="topbar">
+            <span class="topbar-title">Dashboard</span>
+        </header>
+
+        <div class="content">
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon blue">📦</div>
+                    <div>
+                        <div class="stat-value" id="stat-products">—</div>
+                        <div class="stat-label">Productos totales</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon red">⚠️</div>
+                    <div>
+                        <div class="stat-value" id="stat-low-stock">—</div>
+                        <div class="stat-label">Stock bajo (&lt;5)</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon green">👥</div>
+                    <div>
+                        <div class="stat-value" id="stat-users">—</div>
+                        <div class="stat-label">Usuarios</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon amber">🔑</div>
+                    <div>
+                        <div class="stat-value" id="stat-tokens">—</div>
+                        <div class="stat-label">Tokens API activos</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Productos con stock bajo</h2>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Nombre</th>
+                                    <th>Stock</th>
+                                </tr>
+                            </thead>
+                            <tbody id="low-stock-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Últimos movimientos de stock</h2>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Motivo</th>
+                                    <th>Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody id="movements-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="/js/app.js"></script>
+
+<script>
+if (!requireAuth()) {
+    window.location.href = "/login.html";
+}
+
+/* ---------------------------
+   UTIL: render seguro (anti-XSS)
+---------------------------- */
+function createRow(cells) {
+    const tr = document.createElement('tr');
+
+    cells.forEach(text => {
+        const td = document.createElement('td');
+        td.textContent = text ?? '—';
+        tr.appendChild(td);
+    });
+
+    return tr;
+}
+
+/* ---------------------------
+   DASHBOARD
+---------------------------- */
+async function loadDashboard() {
+    try {
+        const [prodRes, tokenRes] = await Promise.all([
+            apiFetch('/products'),
+            isAdmin() ? apiFetch('/tokens') : Promise.resolve({ ok: true, data: [] })
+        ]);
+
+        const products = prodRes.ok ? prodRes.data : [];
+        const tokens = tokenRes.ok ? tokenRes.data : [];
+
+        const lowStock = products.filter(p => Number(p.stock) < 5);
+
+        document.getElementById('stat-products').textContent = products.length;
+        document.getElementById('stat-low-stock').textContent = lowStock.length;
+        document.getElementById('stat-tokens').textContent = tokens.length;
+
+        const usersEl = document.getElementById('stat-users');
+
+        if (isAdmin()) {
+            const usersRes = await apiFetch('/users');
+            usersEl.textContent = usersRes.ok ? usersRes.data.length : '—';
+        } else {
+            usersEl.textContent = '—';
+        }
+
+        /* ---------------------------
+           STOCK BAJO (SEGURIZADO)
+        ---------------------------- */
+        const lowTable = document.getElementById('low-stock-table');
+        lowTable.innerHTML = '';
+
+        if (lowStock.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="3" class="text-muted" style="padding:20px;text-align:center;">
+                Sin alertas de stock
+            </td>`;
+            lowTable.appendChild(tr);
+        } else {
+            lowStock.forEach(p => {
+                lowTable.appendChild(
+                    createRow([p.sku, p.name, p.stock])
+                );
+            });
+        }
+
+        /* ---------------------------
+           MOVIMIENTOS (OPTIMIZADO)
+        ---------------------------- */
+        const movTable = document.getElementById('movements-table');
+        movTable.innerHTML = '';
+
+        const sample = products.slice(0, 8);
+
+        const movementsPromises = sample.map(p =>
+            apiFetch(`/products/${p.id}/movements`)
+                .then(r => ({ product: p.name, data: r.ok ? r.data : [] }))
+        );
+
+        const movementsResults = await Promise.all(movementsPromises);
+
+        const rows = [];
+
+        movementsResults.forEach(res => {
+            res.data.slice(0, 2).forEach(m => {
+                rows.push({
+                    product: res.product,
+                    qty: m.quantity_change,
+                    reason: m.reason,
+                    date: m.created_at
+                });
+            });
+        });
+
+        if (rows.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="4" class="text-muted" style="padding:20px;text-align:center;">
+                Sin movimientos registrados
+            </td>`;
+            movTable.appendChild(tr);
+        } else {
+            rows.forEach(m => {
+                const tr = document.createElement('tr');
+
+                const td1 = document.createElement('td');
+                td1.textContent = m.product;
+
+                const td2 = document.createElement('td');
+                td2.textContent = (m.qty > 0 ? '+' : '') + m.qty;
+                td2.className = m.qty > 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
+
+                const td3 = document.createElement('td');
+                td3.textContent = m.reason || '—';
+
+                const td4 = document.createElement('td');
+                td4.textContent = formatDate(m.date);
+
+                tr.append(td1, td2, td3, td4);
+                movTable.appendChild(tr);
+            });
+        }
+
+    } catch (err) {
+        console.error('Dashboard error:', err);
+    }
+}
+
+loadDashboard();
+</script>
+
+</body>
 </html>
+s
