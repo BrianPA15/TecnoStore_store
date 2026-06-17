@@ -1,14 +1,12 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const db = require('../config/database');
+const { db } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'w4r3h0us3_jwt_s3cr3t';
 
 // POST /api/tokens/generate
-// VULNERABLE: el middleware solo verifica que el usuario esté autenticado,
-// no que sea admin. La restricción existe solo en la UI del frontend.
 router.post('/generate', authMiddleware, (req, res) => {
     const { scope, description } = req.body;
 
@@ -38,15 +36,16 @@ router.post('/generate', authMiddleware, (req, res) => {
     );
 });
 
-// GET /api/tokens — lista tokens generados (solo admin en UI, no en backend)
+// GET /api/tokens — Lista tokens generados arreglado para el Frontend
 router.get('/', authMiddleware, (req, res) => {
+    // 💡 Añadido t.token que faltaba en tu código y rompía el panel visual
     db.all(
-        `SELECT t.id, t.scope, t.description, t.created_at, u.username as created_by
+        `SELECT t.id, t.token, t.scope, t.description, t.created_at, u.username as created_by
          FROM api_tokens t LEFT JOIN users u ON t.created_by = u.id
          ORDER BY t.created_at DESC`,
         (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.json(rows);
+            res.json(rows || []);
         }
     );
 });

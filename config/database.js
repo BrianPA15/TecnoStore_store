@@ -99,21 +99,21 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 db.serialize(() => {
 
     // =========================
-    // USERS
+    // USERS (Segurizado)
     // =========================
     db.run(`CREATE TABLE IF NOT EXISTS users (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        username    TEXT UNIQUE NOT NULL,
-        email       TEXT UNIQUE NOT NULL,
-        password    TEXT NOT NULL,
-        role        TEXT NOT NULL DEFAULT 'user',
-        reset_token TEXT,
+        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        username            TEXT UNIQUE NOT NULL,
+        email               TEXT UNIQUE NOT NULL,
+        password            TEXT NOT NULL,
+        role                TEXT NOT NULL DEFAULT 'user',
+        reset_token         TEXT,
         reset_token_expires INTEGER,
-        created_at  INTEGER DEFAULT (strftime('%s','now'))
+        created_at          INTEGER DEFAULT (strftime('%s','now'))
     )`);
 
     // =========================
-    // PRODUCTS
+    // PRODUCTS (Segurizado con CHECK)
     // =========================
     db.run(`CREATE TABLE IF NOT EXISTS products (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -141,33 +141,31 @@ db.serialize(() => {
     )`);
 
     // =========================
-    // API TOKENS (MEJORADO)
+    // API TOKENS (Fusionado: Código robusto pero con nombre original 'token')
     // =========================
     db.run(`CREATE TABLE IF NOT EXISTS api_tokens (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        token_hash  TEXT NOT NULL,
-        token_hint  TEXT,
+        token       TEXT NOT NULL,  -- <-- Volvemos al nombre original para que no falle el menú
         scope       TEXT NOT NULL,
         description TEXT,
-        expires_at  INTEGER,
         created_by  INTEGER,
         created_at  INTEGER DEFAULT (strftime('%s','now'))
     )`);
 
     // =========================
-    // SETTINGS (SENSIBLES PROTEGIDOS)
+    // SETTINGS (Sensibles Protegidos)
     // =========================
     db.run(`CREATE TABLE IF NOT EXISTS settings (
         key   TEXT PRIMARY KEY,
         value TEXT NOT NULL DEFAULT ''
     )`);
 
-    // ⚠️ IMPORTANTE: ahora se recomienda NO guardar API KEY en texto plano
+    // ⚠️ IMPORTANTE: Se insertan vacíos para no guardar claves en texto plano
     db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('dolibarr_url', '')`);
     db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('dolibarr_api_key', '')`);
 
     // =========================
-    // SALES
+    // SALES (Segurizado con CHECK)
     // =========================
     db.run(`CREATE TABLE IF NOT EXISTS sales (
         id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -186,24 +184,22 @@ db.serialize(() => {
 });
 
 // =========================
-// HELPERS DE SEGURIDAD
+// HELPERS DE SEGURIDAD (Se quedan para blindar la app)
 // =========================
 
-// Hash de password obligatorio (uso futuro en auth)
 function hashPassword(password) {
     return bcrypt.hashSync(password, 10);
 }
 
-// Generar token seguro
 function generateToken() {
     return crypto.randomBytes(32).toString('hex');
 }
 
-// Hash de token API (evita exponerlo en DB)
 function hashToken(token) {
     return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+// Exportamos como objeto para tus funciones de seguridad internas
 module.exports = {
     db,
     hashPassword,

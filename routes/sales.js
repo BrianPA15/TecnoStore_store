@@ -169,7 +169,8 @@
 
 
 const express = require('express');
-const db = require('../config/database');
+// const db = require('../config/database');
+const { db } = require('../config/database');
 const { authMiddleware, adminMiddleware, apiTokenMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
