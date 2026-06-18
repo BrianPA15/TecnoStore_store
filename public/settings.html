@@ -120,97 +120,103 @@
 
 <script src="/js/app.js"></script>
 <script>
-if (!requireAuth() || !isAdmin()) {
-    window.location.href = '/dashboard.html';
-}
-
-function escapeText(str) {
-    return String(str)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
-
-async function loadSettings() {
-    const r = await apiFetch('/settings');
-    if (!r.ok) return;
-
-    document.getElementById('dolibarr-url').value = r.data.dolibarr_url || '';
-  
-    document.getElementById('dolibarr-api-key').value = r.data.dolibarr_api_key
-        ? "••••••••••••••••"
-        : '';
-}
-
-async function saveSettings() {
-    const url = document.getElementById('dolibarr-url').value.trim();
-    const keyInput = document.getElementById('dolibarr-api-key').value.trim();
-
-    const body = {
-        dolibarr_url: url,
-        dolibarr_api_key: keyInput === "••••••••••••••••" ? undefined : keyInput
-    };
-
-    const r = await apiFetch('/settings', {
-        method: 'POST',
-        body: JSON.stringify(body),
-    });
-
-    if (r.ok) {
-        showAlert('alert-container', 'Configuración guardada correctamente.', 'success');
-    } else {
-        showAlert('alert-container', 'Error al guardar configuración.');
-    }
-}
-
-async function testConnection() {
-    const box = document.getElementById('status-box');
-    box.textContent = "Probando conexión…";
-
-    const r = await apiFetch('/settings/test', { method: 'POST' });
-
-    if (r.ok && r.data.connected) {
-        box.textContent = "✔ Conexión establecida correctamente";
-        box.style.color = "var(--success)";
-    } else {
-        const err = r.data?.error || 'Sin respuesta del ERP';
-        box.textContent = "✖ Error: " + escapeText(err);
-        box.style.color = "var(--danger)";
-    }
-}
-
-async function setupErp() {
-    const box = document.getElementById('setup-result');
-    box.style.display = 'block';
-    box.textContent = "Sincronizando productos con el ERP…";
-
-    const r = await apiFetch('/settings/setup-erp', { method: 'POST' });
-
-    if (!r.ok) {
-        box.textContent = "Error en sincronización";
+    // 1. Filtro de seguridad estricto para evitar peticiones fantasma sin sesión
+    if (!requireAuth() || !isAdmin()) {
+        window.location.href = '/dashboard.html';
+        throw new Error();
         return;
     }
+    document.getElementById('sidebar').innerHTML = renderSidebar('settings');
 
-    const d = r.data;
+    async function loadSettings() {
+        const r = await apiFetch('/settings');
+        if (!r.ok) return;
 
-    let output = 
-        "✔ Total: " + (d.total ?? 0) + "\n" +
-        "✔ Creados: " + (d.created ?? 0) + "\n" +
-        "✔ Existentes: " + (d.existing ?? 0);
- 
-    if (Array.isArray(d.errors) && d.errors.length) {
-        output += "\n\nErrores:\n";
+        const url = r.data.dolibarr_url || '';
+        const key = r.data.dolibarr_api_key || '';
 
-        d.errors.forEach(e => {
-            output += "- " + escapeText(e.sku || '') + ": " +
-                      escapeText(e.error || '') + "\n";
-        });
+        document.getElementById('dolibarr-url').value     = url;
+        document.getElementById('dolibarr-api-key').value = key;
+        updateEndpoints(url);
     }
-    box.textContent = output;
-}
-loadSettings();
+
+    function updateEndpoints(url) {
+        const base = (url || '').replace(/\/$/, '');
+        const root = base ? base + '/api/index.php' : '—';
+        document.getElementById('ep-products').textContent = base ? root + '/products' : '—';
+        document.getElementById('ep-invoices').textContent = base ? root + '/invoices' : '—';
+        document.getElementById('ep-thirds').textContent   = base ? root + '/thirdparties' : '—';
+    }
+
+    document.getElementById('dolibarr-url').addEventListener('input', function () {
+        updateEndpoints(this.value);
+    });
+
+    async function saveSettings() {
+        const url = document.getElementById('dolibarr-url').value.trim();
+        const key = document.getElementById('dolibarr-api-key').value.trim();
+
+        // 💡 Mandamos el JSON estructurado limpio que el backend espera recibir
+        const r = await apiFetch('/settings', {
+            method: 'POST',
+            body: JSON.stringify({ dolibarr_url: url, dolibarr_api_key: key }),
+        });
+
+        if (r.ok) {
+            showAlert('alert-container', 'Configuración guardada correctamente.', 'success');
+            updateEndpoints(url);
+        } else {
+            showAlert('alert-container', r.data.error || 'Error al guardar la configuración.');
+        }
+    }
+
+    async function testConnection() {
+        const box = document.getElementById('status-box');
+        box.textContent = 'Probando conexión…';
+        box.style.color = 'var(--muted)';
+
+        const url = document.getElementById('dolibarr-url').value.trim();
+        const key = document.getElementById('dolibarr-api-key').value.trim();
+
+        if (!url || !key) {
+            box.innerHTML = '<span style="color:var(--danger);">&#10007; Configura la URL y la API Key primero.</span>';
+            return;
+        }
+
+        const r = await apiFetch('/settings/test', { method: 'POST' });
+
+        if (r.ok && r.data.connected) {
+            box.innerHTML = '<span style="color:var(--success);">&#10003; Conexión con Dolibarr establecida correctamente.</span>';
+        } else {
+            const err = r.data.error || 'Sin respuesta del ERP';
+            box.innerHTML = `<span style="color:var(--danger);">&#10007; Error: ${err}</span>`;
+        }
+    }
+
+    async function setupErp() {
+        const box = document.getElementById('setup-result');
+        box.style.display = 'block';
+        box.innerHTML = 'Sincronizando productos con el ERP…';
+
+        const r = await apiFetch('/settings/setup-erp', { method: 'POST' });
+        if (r.ok) {
+            const d = r.data;
+            const errHtml = d.errors.length
+                ? `<ul style="margin:6px 0 0 16px;">${d.errors.map(e => `<li>${e.sku}: ${e.error}</li>`).join('')}</ul>`
+                : '';
+            box.innerHTML = `
+                <span style="color:var(--success);">&#10003; Sincronización completada</span><br>
+                Total: <b>${d.total}</b> &nbsp;|&nbsp;
+                Creados en ERP: <b>${d.created}</b> &nbsp;|&nbsp;
+                Ya existían: <b>${d.existing}</b>
+                ${d.errors.length ? `<br><span style="color:var(--danger);">Errores (${d.errors.length}):</span>${errHtml}` : ''}
+            `;
+        } else {
+            box.innerHTML = `<span style="color:var(--danger);">&#10007; ${r.data.error || 'Error en la sincronización'}</span>`;
+        }
+    }
+
+    loadSettings();
 </script>
 
 </body>

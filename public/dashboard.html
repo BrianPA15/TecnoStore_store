@@ -214,8 +214,9 @@
 <script>
 if (!requireAuth()) {
     window.location.href = "/login.html";
+    return;
 }
-
+document.getElementById('sidebar').innerHTML = renderSidebar('dashboard');
 /* ---------------------------
    UTIL: render seguro (anti-XSS)
 ---------------------------- */
@@ -345,4 +346,3 @@ loadDashboard();
 
 </body>
 </html>
-s

@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  mariadb:
+    image: mariadb:10.6
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: dolibarr
+      MYSQL_USER: dolibarr
+      MYSQL_PASSWORD: dolibarr
+    volumes:
+      - dolibarr_db:/var/lib/mysql
+    restart: unless-stopped
+
+  dolibarr:
+    image: tuxgasy/dolibarr:17.0.0
+    environment:
+      DOLI_DB_HOST:     mariadb
+      DOLI_DB_NAME:     dolibarr
+      DOLI_DB_USER:     dolibarr
+      DOLI_DB_PASSWORD: dolibarr
+      DOLI_DB_TYPE:     mysqli
+      DOLI_URL_ROOT:    http://localhost:8080
+      DOLI_ADMIN_LOGIN: admin
+      DOLI_ADMIN_PASSWORD: admin
+      DOLI_MODULES:     modSociete,modFacture,modProduit
+    ports:
+      - "8080:80"
+    depends_on:
+      - mariadb
+    volumes:
+      - dolibarr_html:/var/www/html/documents
+    restart: unless-stopped
+
+volumes:
+  dolibarr_db:
+  dolibarr_html:
