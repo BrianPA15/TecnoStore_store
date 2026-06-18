@@ -214,7 +214,7 @@
 <script>
 if (!requireAuth()) {
     window.location.href = "/login.html";
-    return;
+    throw new Error();
 }
 document.getElementById('sidebar').innerHTML = renderSidebar('dashboard');
 /* ---------------------------
