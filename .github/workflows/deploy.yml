@@ -1,0 +1,58 @@
+name: CI API Almacen e Integraciones
+
+on: [push, pull_request]
+
+jobs:
+  node-tests:
+    name: Tests de la API del Almacén
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Clonar el Repositorio
+      uses: actions/checkout@v4
+
+    - name: Configurar Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '14.x'
+
+    - name: Instalar Dependencias
+      run: npm install
+
+    - name: Ejecutar Tests de Integración
+      env:
+        PORT: 3000
+        JWT_SECRET: ${{ secrets.JWT_SECRET }} 
+        DB_PATH: ./database.sqlite
+        DOLAPIKEY: ${{ secrets.DOLAPIKEY }}
+      run: npx jest api.test # Lanza directamente tu fichero de pruebas del almacén
+
+
+
+# name: CI Almacen TecnoStore
+
+# on: [push, pull_request]
+
+# jobs:
+#   node-tests:
+#     name: API Almacén Testing (Node.js)
+#     runs-on: ubuntu-latest
+
+#     steps:
+#     - name: Clonar el Repositorio
+#       uses: actions/checkout@v4
+
+#     - name: Configurar Node.js
+#       uses: actions/setup-node@v4
+#       with:
+#         node-version: '18' # Reemplaza por tu versión de node (16, 18, 20...)
+#         cache: 'npm'
+
+#     - name: Instalar Dependencias del Almacén
+#       run: npm install
+
+#     - name: Ejecutar Migraciones / Semilla (Opcional para el Test)
+#       run: npm run seed || true # Por si tus tests necesitan la base de datos SQLite poblada
+
+#     - name: Ejecutar Tests de Integración (Jest + Supertest)
+#       run: npm test
